@@ -1,0 +1,109 @@
+*FUNCTION ZHR_ESS_APPROVALS.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IM_PERNR) TYPE  PERSNO OPTIONAL
+*"     VALUE(IM_ROLE) TYPE  CHAR100 OPTIONAL
+*"  TABLES
+*"      EX_PENDING_LIST STRUCTURE  ZHR_ESS_APPROVAL OPTIONAL
+*"----------------------------------------------------------------------
+FUNCTION zhr_ess_approvals.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IM_PERNR) TYPE  PERSNO OPTIONAL
+*"     VALUE(IM_ROLE) TYPE  CHAR100 OPTIONAL
+*"  TABLES
+*"      EX_PENDING_LIST STRUCTURE  ZHR_ESS_APPROVAL OPTIONAL
+*"----------------------------------------------------------------------
+"
+
+  IF im_role = 'DIV'.
+    gv_status_id = '01'.
+  ELSEIF im_role = 'DIVE'.
+    gv_status_id = '02'.
+    CLEAR: gv_len.
+    SELECT * FROM zhr_shift_change INTO TABLE gt_shift_change WHERE zstatus_id = '01'   "gv_status_id'
+                                                            AND   zapprover = im_pernr.
+
+    DESCRIBE TABLE gt_shift_change LINES gv_len.
+    gs_ess_approval-zcount = gv_len.
+    gs_ess_approval-zprocess_name = 'Shift Change'.
+    APPEND gs_ess_approval TO gt_ess_approval.
+    gv_tot = gv_tot + gv_len.
+    CLEAR: gs_ess_approval, gv_len.
+
+    SELECT * FROM zhr_woff_change INTO TABLE gt_woff_change WHERE zstatus_id = '01'   "gv_status_id'
+                                                               AND   zapprover = im_pernr.
+
+    DESCRIBE TABLE gt_woff_change LINES gv_len.
+    gs_ess_approval-zcount = gv_len.
+    gs_ess_approval-zprocess_name = 'WeekOff Change'.
+    APPEND gs_ess_approval TO gt_ess_approval.
+    gv_tot = gv_tot + gv_len.
+    CLEAR: gs_ess_approval, gv_len.
+  ENDIF.
+  CLEAR: gv_len.
+  SELECT * FROM zhr_absences_r INTO TABLE gt_absences_r WHERE zstatus_id = gv_status_id
+                                                        AND   zapprover = im_pernr
+                                                        AND   zinfotype ne '0015'
+                                                        AND   subty not in ('3700','3600','3500').
+  DESCRIBE TABLE gt_absences_r LINES gv_len.
+  gs_ess_approval-zcount = gv_len.
+  gv_tot = gv_tot + gv_len.
+  gs_ess_approval-zprocess_name = 'Leave Application'.
+  gs_ess_approval-wfid = '010'.
+  APPEND gs_ess_approval TO gt_ess_approval.
+   CLEAR: gs_ess_approval, gv_len.
+   SELECT * FROM zhr_absences_r INTO TABLE gt_absences_r WHERE zstatus_id = gv_status_id
+                                                        AND   zapprover = im_pernr
+                                                        AND   zinfotype ne '0015'
+                                                        AND   subty in ('3700','3600','3500').
+  DESCRIBE TABLE gt_absences_r LINES gv_len.
+  gs_ess_approval-zcount = gv_len.
+  gs_ess_approval-wfid = '014'.
+  gv_tot = gv_tot + gv_len.
+  gs_ess_approval-zprocess_name = 'COFF Application'.
+  APPEND gs_ess_approval TO gt_ess_approval.
+  CLEAR: gs_ess_approval, gv_len.
+  SELECT * FROM zhr_absences_r INTO TABLE gt_absences_r WHERE zstatus_id = gv_status_id
+                                                        AND   zapprover = im_pernr
+                                                        AND   zinfotype = '0015'.
+  DESCRIBE TABLE gt_absences_r LINES gv_len.
+  gs_ess_approval-zcount = gv_len.
+  gs_ess_approval-wfid = '013'.
+  gv_tot = gv_tot + gv_len.
+  gs_ess_approval-zprocess_name = 'PH Wage Claim'.
+  APPEND gs_ess_approval TO gt_ess_approval.
+  CLEAR: gs_ess_approval, gv_len.
+  IF im_role = 'DIV'.
+    SELECT * FROM zhr_attds_r INTO TABLE gt_attds WHERE status_id = gv_status_id
+                                                          AND   reporting_officer = im_pernr.
+  ELSEIF im_role = 'DIVE'.
+
+    SELECT * FROM zhr_attds_r INTO TABLE gt_attds WHERE status_id = gv_status_id
+                                                        AND  sanctioning_officer = im_pernr.
+  ENDIF.
+  DESCRIBE TABLE gt_attds LINES gv_len.
+  gs_ess_approval-zcount = gv_len.
+  gs_ess_approval-wfid = '012'.
+  gv_tot = gv_tot + gv_len.
+  gs_ess_approval-zprocess_name = 'OD Application'.
+  APPEND gs_ess_approval TO gt_ess_approval.
+  CLEAR: gs_ess_approval, gv_len.
+
+
+  gs_ess_approval-zcount = gv_tot .
+  gs_ess_approval-zprocess_name = 'Total Application'.
+  APPEND gs_ess_approval TO gt_ess_approval.
+
+  ex_pending_list[] = gt_ess_approval[].
+
+ENDFUNCTION.
+
+
+
+
+
+
+*ENDFUNCTION.
